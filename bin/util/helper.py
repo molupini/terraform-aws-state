@@ -68,7 +68,7 @@ class HttpFetch(object):
         else:
             raise 1
 
-    def status(self, id, link='null'):
+    def status(self, id, code=0, app='null', link='null'):
             if link == 'null':
                 protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
                 hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
@@ -76,34 +76,15 @@ class HttpFetch(object):
                 uri = f'{protocol}://{hostname}:{port}'
             else:
                 uri = f'{link}'
-            url = f'{uri}/resources/query/{id}?document=tagging'
-            n = 0
-            d = 0
+            url = f'/resources/query/{id}?document=tagging'
             # debugging
             # print(url)
             try:
-                file = open(f'./{id}-output.json', 'r').read()
-                print(file)
-                load = json.loads(file)
-                try:
-                    d = load['done']['value']
-                    a = load['application']['value']
-                    if (d == 0):
-                        inf = {'info': f'{id}, done={d}'}
-                        print(inf)
-                        n = 6
-                        url = f'{protocol}://{hostname}:{port}/resources/status/{id}?state={n}&application={a}'
-                except KeyError as ke:
-                    err = {'error': f'{id}, KeyError {ke}'}
-                    print(err)
-                    n = 8
-                    url = f'{protocol}://{hostname}:{port}/resources/status/{id}?state={n}'
-            except FileNotFoundError as fe:
-                err = {'error': f'{id}, FileNotFoundError {fe}'}
-                print(err)
-                n = 10
-                url = f'{protocol}://{hostname}:{port}/resources/status/{id}?state={n}'
-            response = requests.get(url)
+                if app == 'state':
+                    url = f'{uri}/resources/status/{id}?state={code}&application={app}'
+                else:
+                    url = f'{uri}/resources/status/{id}?state={code}'
+                response = requests.get(url)
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
                 err = {'error': f'resource state, web {response.status_code}'}
                 raise Exception(err)

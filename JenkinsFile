@@ -1,3 +1,5 @@
+// IMPORTANT NOTE, USE OF STATE FILES NOT REQUIRED IF USING BACKEND / WORKSPACES 
+def refresh = false
 pipeline{
     agent any
     parameters {
@@ -10,38 +12,52 @@ pipeline{
         TF_IN_AUTOMATION = "true"
     }
     stages{
-         stage("Clone"){
+        stage("Clone"){
             steps{
+                // ALWAYS DICARD LOCAL REPO
                 echo "======== Clone Repo ========"
-                dir('./'){
+                dir("./"){
                     script{
-                        try { 
-                            sh "cd ./${params.deploymentId}"
-                        } catch (Exception err){
-                            println(err)
-                            sh "mkdir ./${params.deploymentId}"
-                            sh "cd ./${params.deploymentId}"
+                        try {
+                            def file ="./tfremotestate/state.tf"
+                            def fileFound = fileExists(file)
+                            println("state.tf, exists = ${fileFound}")
+                            if(!fileFound){
+                                sh "rm -R ./tfremotestate/ -f"
+                            } 
                             sh "git init"
                             sh "git config remote.origin.url git@gitlab.com:bcx-sanlam-group/tfremotestate.git"
-                            sh "git --version"
                             sh "git clone git@gitlab.com:bcx-sanlam-group/tfremotestate.git"
+                        } catch (Exception err){
+                            println(err)
+                            throw new Exception("Unable to perform clone, try again!")
                         }
                     }
                 }
             }
         }
-         stage("Init"){
+        stage("Init"){
             steps{
+                // CACHE WORKING PLUGINS 
                 echo "======== Executing Init ========"
-                dir('./tfremotestate/bin'){
+                dir("./tfremotestate/bin"){
                     script{
-                        try { 
-                            def file ="./.terraform/terraform.tfstate"
+                        try {
+                            def file = "../../${params.deploymentId}/.terraform/plugins/linux_amd64/lock.json"
                             def fileFound = fileExists(file)
-                            sh "terraform --version"
-                            sh "terraform init"
-                            sh "terraform validate"
+                            println("lock.json, exists = ${fileFound}")
+                            if(fileFound){
+                                sh "terraform init \
+                                -plugin-dir ../../${params.deploymentId}/.terraform/plugins/linux_amd64"
+                            } 
+                            else {
+                                sh "terraform init"
+                                sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
+                            }
                         } catch (Exception err){
+                            sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
+                            sh "terraform init \
+                            -plugin-dir ''"
                             println(err)
                             throw new Exception("Unable to perform init, try again!")
                         }
@@ -49,21 +65,50 @@ pipeline{
                 }
             }
         }
-         stage("Plan"){
+        stage("Validate"){
             steps{
+                // VERIFY WORKING HCL / TERRAFORM SOURCE CODE 
+                echo "======== Executing Validation ========"
+                dir("./tfremotestate/bin"){
+                    script{
+                        try { 
+                            sh "terraform validate"
+                        } catch (Exception err){
+                            println(err)
+                            throw new Exception("Unable to perform validation, try again!")
+                        }
+                    }
+                }
+            }
+        }
+        stage("Plan"){
+            steps{
+                // PLAN WILL VERIFY IF STATE EXISTS, IF FALSE - OUTPUT TO DEPLOYMENTID FOLDER, IF TRUE - INPUT FROM DEPLOYMENTID FOLDER 
                 echo "======== Executing Plan ========"
                 dir('./tfremotestate/bin'){
                     script{
                         try { 
-                            def file ="./.terraform/terraform.tfstate"
+                            def file ="../../${params.deploymentId}/terraform.tfstate"
                             def fileFound = fileExists(file)
-                            sh "terraform plan \
-                            -var 'id=${params.deploymentId}' \
-                            -var 'aws_access_key=${AWS_ACCESS_KEY}' \
-                            -var 'aws_secret_key=${AWS_SECRET_KEY}' \
-                            -var 'aws_region=${AWS_REGION}' \
-                            -out ${params.deploymentId}-apply.tfplan"
-                            stash name: "terraform-plan", includes: "${params.deploymentId}-apply.tfplan"
+                            println("terraform.tfstate, exists = ${fileFound}")
+                            if(!fileFound){
+                                sh "terraform plan \
+                                -var 'id=${params.deploymentId}' \
+                                -var 'aws_access_key=${AWS_ACCESS_KEY}' \
+                                -var 'aws_secret_key=${AWS_SECRET_KEY}' \
+                                -var 'aws_region=${AWS_REGION}' \
+                                -out ../../${params.deploymentId}/apply.tfplan \
+                                -state-out ../../${params.deploymentId}/terraform.tfstate"
+                            } else {
+                                sh "terraform plan \
+                                -var 'id=${params.deploymentId}' \
+                                -var 'aws_access_key=${AWS_ACCESS_KEY}' \
+                                -var 'aws_secret_key=${AWS_SECRET_KEY}' \
+                                -var 'aws_region=${AWS_REGION}' \
+                                -out ../../${params.deploymentId}/apply.tfplan \
+                                -state ../../${params.deploymentId}/terraform.tfstate"
+                            }
+
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable perform plan, try again!")
@@ -74,6 +119,9 @@ pipeline{
         }
         stage("Apply"){
             steps{
+                // INPUT REQUIRED IF TO APPLY OR ABOUT WHICH WILL DESTROY 
+                // APPLY FALSE - WILL PLAN THE DESTROY AND THEN APPLY
+                // APPLY TRUE - SEE BELOW #
                 echo "======== Executing Apply ========"
                 script {
                     def apply = false
@@ -82,27 +130,75 @@ pipeline{
                         apply = true
                     } catch (Exception err) {
                         dir('./tfremotestate/bin'){
-                            sh "terraform destroy \
+                            // PLAN DESTROY
+                            sh "terraform plan -destroy \
                             -var 'id=${params.deploymentId}' \
                             -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                             -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                             -var 'aws_region=${AWS_REGION}' \
-                            -auto-approve"
-                            sh "terraform output -json > ${params.deploymentId}-output.json"
+                            -out ../../${params.deploymentId}/destroy.tfplan \
+                            -state ../../${params.deploymentId}/terraform.tfstate"
+                            // APPLY DESTROY
+                            // TODO MIGHT REQUIRE ANOTHER INPUT, IF NECESSARY
+                            def file ="../../${params.deploymentId}/destroy.tfplan"
+                            def fileFound = fileExists(file)
+                            println("destroy.tfplan, exists = ${fileFound}")
+                            if(fileFound){
+                                sh "terraform apply \
+                                -state ../../${params.deploymentId}/terraform.tfstate \
+                                ../../${params.deploymentId}/destroy.tfplan"
+                            }
+                            sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
                             sh "python3 ./util/helper.py status ${params.deploymentId}"
                         }
                         currentBuild.result = 'UNSTABLE'
                     }
+                    // # APPLY - TRUE, BUILD
+                    // IF ANY ERROR IN CATCH FORCE REFRESH OF STATE
                     if(apply){
                         dir('./tfremotestate/bin'){
-                            unstash "terraform-plan"
-                            sh "terraform apply ${params.deploymentId}-apply.tfplan"
-                            sh "terraform output -json > ${params.deploymentId}-output.json"
+                            def file ="../../${params.deploymentId}/apply.tfplan"
+                            def fileFound = fileExists(file)
+                            println("apply.tfplan, exists = ${fileFound}")
+                            if(fileFound){
+                                try {
+                                    sh "terraform apply \
+                                    -state ../../${params.deploymentId}/terraform.tfstate \
+                                    ../../${params.deploymentId}/apply.tfplan"
+                                } catch (Exception err) {
+                                    refresh = true
+                                }
+                            } 
+                            sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
                             sh "python3 ./util/helper.py status ${params.deploymentId}"
                         }
                     }
                 }
+            }
         }
+        stage("Refresh"){
+            steps{
+                echo "======== Executing Refresh ========"
+                dir("./tfremotestate/bin"){
+                    script{
+                        try { 
+                            println("refresh = ${refresh}")
+                            if(refresh){
+                                sh "terraform refresh \
+                                -var 'id=${params.deploymentId}' \
+                                -var 'aws_access_key=${AWS_ACCESS_KEY}' \
+                                -var 'aws_secret_key=${AWS_SECRET_KEY}' \
+                                -var 'aws_region=${AWS_REGION}' \
+                                -state ../../${params.deploymentId}/terraform.tfstate"
+                                currentBuild.result = 'UNSTABLE'
+                            } 
+                        } catch (Exception err){
+                            println(err)
+                            throw new Exception("Unable to perform refresh, try again!")
+                        }
+                    }
+                }
+            }
         }
     }
 }
