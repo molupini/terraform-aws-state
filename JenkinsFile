@@ -43,27 +43,33 @@ pipeline{
                 dir("./tfremotestate/bin"){
                     script{
                         try {
+                            // CACHE ONLY SPECIFIC DEPLOYMENT, # 
                             // def file = "../../${params.deploymentId}/.terraform/plugins/linux_amd64/lock.json"
+                            // CACHE ENTIRE WORKSPACE 
                             def file = "../../.terraform/plugins/linux_amd64/lock.json"
                             def fileFound = fileExists(file)
                             println("lock.json, exists = ${fileFound}")
                             if(fileFound){
                                 sh "terraform init \
                                 -plugin-dir ../../.terraform/plugins/linux_amd64"
+                                // #
                                 // -plugin-dir ../../${params.deploymentId}/.terraform/plugins/linux_amd64"
                             } 
                             else {
                                 sh "terraform init"
+                                // #
                                 // sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
                                 sh "cp -r ./.terraform/ ../../"
                             }
                             sh "python3 ./util/helper.py status ${params.deploymentId} 1 state"
                         } catch (Exception err){
+                            // #
                             // sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
                             sh "rm -R ../../.terraform/ -f"
                             sh "terraform init \
                             -plugin-dir ''"
                             // println(err)
+                            // COMMENT OUT THROW FOR THE INTERIM
                             // throw new Exception("Unable to perform init, try again!")
                             sh "python3 ./util/helper.py status ${params.deploymentId} 2 state"
                         }
@@ -89,7 +95,7 @@ pipeline{
         }
         stage("Plan"){
             steps{
-                // PLAN WILL VERIFY IF STATE EXISTS, IF FALSE - OUTPUT TO DEPLOYMENTID FOLDER, IF TRUE - INPUT FROM DEPLOYMENTID FOLDER 
+                // PLAN WILL VERIFY IF STATE EXISTS, IF FALSE - OUTPUT TO DEPLOYMENT-ID SUB FOLDER, IF TRUE - INPUT FROM DEPLOYMENT-ID SUB FOLDER 
                 echo "======== Executing Plan ========"
                 dir('./tfremotestate/bin'){
                     script{
@@ -146,7 +152,7 @@ pipeline{
                             -out ../../${params.deploymentId}/destroy.tfplan \
                             -state ../../${params.deploymentId}/terraform.tfstate"
                             // APPLY DESTROY
-                            // TODO MIGHT REQUIRE ANOTHER INPUT, IF NECESSARY
+                            // TODO MIGHT REQUIRE ANOTHER INPUT, IF NECESSARY TO VERIFY ACTION
                             def file ="../../${params.deploymentId}/destroy.tfplan"
                             def fileFound = fileExists(file)
                             println("destroy.tfplan, exists = ${fileFound}")
@@ -161,7 +167,7 @@ pipeline{
                         currentBuild.result = 'UNSTABLE'
                     }
                     // # APPLY - TRUE, BUILD
-                    // IF ANY ERROR IN CATCH FORCE REFRESH OF STATE
+                    // IF ANY ERROR IN CATCH FORCE REFRESH
                     if(apply){
                         dir('./tfremotestate/bin'){
                             def file ="../../${params.deploymentId}/apply.tfplan"
