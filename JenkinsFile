@@ -54,6 +54,7 @@ pipeline{
                                 sh "terraform init"
                                 sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
                             }
+                            // sh "python3 ./util/helper.py status 1 state ${params.deploymentId}"
                         } catch (Exception err){
                             sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
                             sh "terraform init \
@@ -108,7 +109,7 @@ pipeline{
                                 -out ../../${params.deploymentId}/apply.tfplan \
                                 -state ../../${params.deploymentId}/terraform.tfstate"
                             }
-
+                            // sh "python3 ./util/helper.py status 3 state ${params.deploymentId}"
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable perform plan, try again!")
@@ -149,7 +150,7 @@ pipeline{
                                 ../../${params.deploymentId}/destroy.tfplan"
                             }
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status ${params.deploymentId}"
+                            // sh "python3 ./util/helper.py status 8 state ${params.deploymentId}"
                         }
                         currentBuild.result = 'UNSTABLE'
                     }
@@ -170,7 +171,7 @@ pipeline{
                                 }
                             } 
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status ${params.deploymentId}"
+                            // sh "python3 ./util/helper.py status 6 state ${params.deploymentId}"
                         }
                     }
                 }
