@@ -57,7 +57,7 @@ pipeline{
                                 // sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
                                 sh "cp -r ./.terraform/ ../../"
                             }
-                            sh "python3 ./util/helper.py status 1 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 1 state"
                         } catch (Exception err){
                             // sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
                             sh "rm -R ../../.terraform/ -f"
@@ -65,7 +65,7 @@ pipeline{
                             -plugin-dir ''"
                             // println(err)
                             // throw new Exception("Unable to perform init, try again!")
-                            sh "python3 ./util/helper.py status 2 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 2 state"
                         }
                     }
                 }
@@ -106,19 +106,19 @@ pipeline{
                                 -out ../../${params.deploymentId}/apply.tfplan \
                                 -state-out ../../${params.deploymentId}/terraform.tfstate"
                             } else {
-                                sh "terraform refresh \
+                                sh "terraform plan \
                                 -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                                 -var 'aws_region=${AWS_REGION}' \
-                                -out ../../${params.deploymentId}/apply.tfplan \
-                                -state ../../${params.deploymentId}/terraform.tfstate"
+                                -state ../../${params.deploymentId}/terraform.tfstate \
+                                -out ../../${params.deploymentId}/apply.tfplan"
                             }
-                            sh "python3 ./util/helper.py status 3 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 3 state"
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable perform plan, try again!")
-                            sh "python3 ./util/helper.py status 4 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 4 state"
                         }
                     }
                 }
@@ -156,7 +156,7 @@ pipeline{
                                 ../../${params.deploymentId}/destroy.tfplan"
                             }
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status 8 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 8 state"
                         }
                         currentBuild.result = 'UNSTABLE'
                     }
@@ -177,12 +177,13 @@ pipeline{
                                 }
                             } 
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status 6 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status ${params.deploymentId} 6 state"
                         }
                     }
                 }
             }
         }
+        // TODO VERIFY IF NECESSARY
         stage("Refresh"){
             steps{
                 echo "======== Executing Refresh ========"
