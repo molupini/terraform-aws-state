@@ -43,24 +43,29 @@ pipeline{
                 dir("./tfremotestate/bin"){
                     script{
                         try {
-                            def file = "../../${params.deploymentId}/.terraform/plugins/linux_amd64/lock.json"
+                            // def file = "../../${params.deploymentId}/.terraform/plugins/linux_amd64/lock.json"
+                            def file = "../../.terraform/plugins/linux_amd64/lock.json"
                             def fileFound = fileExists(file)
                             println("lock.json, exists = ${fileFound}")
                             if(fileFound){
                                 sh "terraform init \
-                                -plugin-dir ../../${params.deploymentId}/.terraform/plugins/linux_amd64"
+                                -plugin-dir ../../.terraform/plugins/linux_amd64"
+                                // -plugin-dir ../../${params.deploymentId}/.terraform/plugins/linux_amd64"
                             } 
                             else {
                                 sh "terraform init"
-                                sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
+                                // sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
+                                sh "cp -r ./.terraform/ ../../"
                             }
-                            // sh "python3 ./util/helper.py status 1 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status 1 state ${params.deploymentId}"
                         } catch (Exception err){
-                            sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
+                            // sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
+                            sh "rm -R ../../.terraform/ -f"
                             sh "terraform init \
                             -plugin-dir ''"
-                            println(err)
-                            throw new Exception("Unable to perform init, try again!")
+                            // println(err)
+                            // throw new Exception("Unable to perform init, try again!")
+                            sh "python3 ./util/helper.py status 2 state ${params.deploymentId}"
                         }
                     }
                 }
@@ -101,7 +106,7 @@ pipeline{
                                 -out ../../${params.deploymentId}/apply.tfplan \
                                 -state-out ../../${params.deploymentId}/terraform.tfstate"
                             } else {
-                                sh "terraform plan \
+                                sh "terraform refresh \
                                 -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
@@ -109,10 +114,11 @@ pipeline{
                                 -out ../../${params.deploymentId}/apply.tfplan \
                                 -state ../../${params.deploymentId}/terraform.tfstate"
                             }
-                            // sh "python3 ./util/helper.py status 3 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status 3 state ${params.deploymentId}"
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable perform plan, try again!")
+                            sh "python3 ./util/helper.py status 4 state ${params.deploymentId}"
                         }
                     }
                 }
@@ -150,7 +156,7 @@ pipeline{
                                 ../../${params.deploymentId}/destroy.tfplan"
                             }
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            // sh "python3 ./util/helper.py status 8 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status 8 state ${params.deploymentId}"
                         }
                         currentBuild.result = 'UNSTABLE'
                     }
@@ -171,7 +177,7 @@ pipeline{
                                 }
                             } 
                             sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            // sh "python3 ./util/helper.py status 6 state ${params.deploymentId}"
+                            sh "python3 ./util/helper.py status 6 state ${params.deploymentId}"
                         }
                     }
                 }

@@ -85,10 +85,12 @@ class HttpFetch(object):
                 else:
                     url = f'{uri}/resources/status/{id}?state={code}'
                 response = requests.get(url)
-            if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
-                err = {'error': f'resource state, web {response.status_code}'}
-                raise Exception(err)
-            return 0
+                if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
+                    err = {'error': f'resource state, web {response.status_code}'}
+                    raise Exception(err)
+                return 0
+            except:
+                return 1
 
 
 if __name__ == '__main__':
