@@ -55,6 +55,7 @@ resource "aws_dynamodb_table" "dyn_state" {
 
 resource "aws_s3_bucket" "s3_state" {
   bucket        = data.external.bucket.result["logicalName"]
+  region        = var.aws_region
   acl           = "private"
   force_destroy = true
   versioning {
