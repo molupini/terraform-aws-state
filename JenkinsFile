@@ -111,6 +111,7 @@ pipeline{
                                 -var 'aws_region=${AWS_REGION}' \
                                 -out ../../${params.deploymentId}/apply.tfplan \
                                 -state-out ../../${params.deploymentId}/terraform.tfstate"
+                                sh "terraform show ../../${params.deploymentId}/apply.tfplan"
                             } else {
                                 sh "terraform plan \
                                 -var 'id=${params.deploymentId}' \
@@ -119,6 +120,7 @@ pipeline{
                                 -var 'aws_region=${AWS_REGION}' \
                                 -state ../../${params.deploymentId}/terraform.tfstate \
                                 -out ../../${params.deploymentId}/apply.tfplan"
+                                sh "terraform show ../../${params.deploymentId}/apply.tfplan"
                             }
                             sh "python3 ./util/helper.py status ${params.deploymentId} 3 state"
                         } catch (Exception err){
@@ -151,6 +153,7 @@ pipeline{
                             -var 'aws_region=${AWS_REGION}' \
                             -out ../../${params.deploymentId}/destroy.tfplan \
                             -state ../../${params.deploymentId}/terraform.tfstate"
+                            sh "terraform show ../../${params.deploymentId}/destroy.tfplan"
                             // APPLY DESTROY
                             // TODO MIGHT REQUIRE ANOTHER INPUT, IF NECESSARY TO VERIFY ACTION
                             def file ="../../${params.deploymentId}/destroy.tfplan"
