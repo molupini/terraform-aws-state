@@ -73,12 +73,7 @@ Verify the deployment by docker exec.
 $ docker exec -it state_iac-terra_1 bash
 ```
 
-Issue attaching the volume, copy when changes required into container
-```sh
-$ docker cp bin/. state_iac-terra_1:/app/.
-```
-
-Verify terraform source files
+Verify terraform source files, variable(s) will prompt user
 ```sh
 $ terraform init
 $ terraform fmt
@@ -89,7 +84,44 @@ $ terraform apply -var 'id=5db3181d169cd3001dfd61ab' -var 'aws_access_key=****' 
 $ terraform destroy -var 'id=5db3181d169cd3001dfd61ab' -var 'aws_access_key=****' -var 'aws_secret_key=****' -var 'aws_region=eu-west-1'
 ```
 
+# Operating
+Once [jenkins] is online and ready, you need to add credentials of your AWS Account. 
+From the home page click Credentials > System on the left. Under System, click the Global credentials (unrestricted) link to access this default domain. Click Add Credentials on the left.
+
+Kind > Secret text
+```sh
+Secret : "****"
+ID : "AWS_ACCESS_KEY"
+```
+
+Kind > Secret text
+```sh
+Secret : "****"
+ID : "AWS_SECRET_KEY"
+```
+
+Kind > Secret text
+```sh
+Secret : "****"
+ID : "AWS_REGION"
+```
+
+Create a new item, example terraform_state_git, pipeline. Some important considerations or options.
+Example below, 
+*Importantly all options/parameters can be controlled by the pipeline script*
+
+```
+pipeline {
+  options {
+      buildDiscarder(logRotator(numToKeepStr: '7'))
+  }
+  ...
+}
+```
+
+
 # Author
+
 **Want to contribute? Great! See repo [git-repo-url] from [Maurizio Lupini][mo]    -Author, Working at [...][linkIn]**
 
 

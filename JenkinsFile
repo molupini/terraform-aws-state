@@ -1,9 +1,12 @@
 // IMPORTANT NOTE, USE OF STATE FILES NOT REQUIRED IF USING BACKEND / WORKSPACES 
 def refresh = false
 pipeline{
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '7'))
+    }
     agent any
     parameters {
-        string(name: "deploymentId", defaultValue: "5db94c147bc9d7001e92ee1b")
+        string(name: "deploymentId", defaultValue: "5dc9220fe07aed0019f9b149")
     }
     environment{
         AWS_ACCESS_KEY = credentials("AWS_ACCESS_KEY")
@@ -104,13 +107,13 @@ pipeline{
                             def fileFound = fileExists(file)
                             println("terraform.tfstate, exists = ${fileFound}")
                             if(!fileFound){
+                                sh "mkdir -p ../../${params.deploymentId}"
                                 sh "terraform plan \
                                 -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                                 -var 'aws_region=${AWS_REGION}' \
-                                -out ../../${params.deploymentId}/apply.tfplan \
-                                -state-out ../../${params.deploymentId}/terraform.tfstate"
+                                -out ../../${params.deploymentId}/apply.tfplan"
                                 sh "terraform show ../../${params.deploymentId}/apply.tfplan"
                             } else {
                                 sh "terraform plan \
