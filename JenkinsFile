@@ -2,11 +2,11 @@
 def refresh = false
 pipeline{
     options {
-        buildDiscarder(logRotator(numToKeepStr: '7'))
+        buildDiscarder(logRotator(numToKeepStr: '2', daysToKeepStr: '1', artifactDaysToKeepStr: '3', artifactNumToKeepStr: '4'))
     }
     agent any
     parameters {
-        string(name: "deploymentId", defaultValue: "5dc9220fe07aed0019f9b149")
+        string(name: "deploymentId", defaultValue: "5dc9220fe07aed0019f9b149", description: 'DeploymentId, Group Resources/Configuration and Tagging', trim: true)
     }
     environment{
         AWS_ACCESS_KEY = credentials("AWS_ACCESS_KEY")
