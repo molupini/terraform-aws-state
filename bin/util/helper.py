@@ -35,22 +35,14 @@ class HttpFetch(object):
         else:
             return 1
 
-    def status(self, id, code=0, app='null', link='null'):
-            if link == 'null':
-                protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
-                hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
-                port = environ.get('IAC_ENDPOINT_PORT')
-                uri = f'{protocol}://{hostname}:{port}'
-            else:
-                uri = f'{link}'
-            url = f'/resources/query/{id}?document=tagging'
-            # debugging
-            # print(url)
+    def status(self, id, code=0):
+            # WEB REQUEST
+            protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
+            hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
+            port = environ.get('IAC_ENDPOINT_PORT')
+            uri = f'{protocol}://{hostname}:{port}'
+            url = f'{uri}/app/deployment/{id}?state={code}'
             try:
-                if app == 'state':
-                    url = f'{uri}/resources/status/{id}?state={code}&application={app}'
-                else:
-                    url = f'{uri}/resources/status/{id}?state={code}'
                 response = requests.get(url)
                 if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
                     err = {'error': f'resource state, web {response.status_code}'}

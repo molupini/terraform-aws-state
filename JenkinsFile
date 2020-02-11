@@ -6,7 +6,7 @@ pipeline{
     }
     agent any
     parameters {
-        string(name: "deploymentId", defaultValue: "5dc9220fe07aed0019f9b149", description: 'DeploymentId, Group Resources/Configuration and Tagging', trim: true)
+        string(name: "deploymentId", defaultValue: "5e41386ca2bd9c0012eb54aa", description: 'DeploymentId, Group Resources/Configuration and Tagging', trim: true)
     }
     environment{
         AWS_ACCESS_KEY = credentials("AWS_ACCESS_KEY")
@@ -29,8 +29,8 @@ pipeline{
                                 sh "rm -R ./tfremotestate/ -f"
                             } 
                             sh "git init"
-                            sh "git config remote.origin.url git@gitlab.com:bcx-sanlam-group/tfremotestate.git"
-                            sh "git clone git@gitlab.com:bcx-sanlam-group/tfremotestate.git"
+                            sh "git config remote.origin.url git@github.com:molupini/terraform-aws-state.git"
+                            sh "git clone git@github.com:molupini/terraform-aws-state.git"
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable to perform clone, try again!")
@@ -64,7 +64,7 @@ pipeline{
                                 // sh "cp -r ./.terraform/ ../../${params.deploymentId}/"
                                 sh "cp -r ./.terraform/ ../../"
                             }
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 1 state"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 1"
                         } catch (Exception err){
                             // #
                             // sh "rm -R ../../${params.deploymentId}/.terraform/ -f"
@@ -74,7 +74,7 @@ pipeline{
                             // println(err)
                             // COMMENT OUT THROW FOR THE INTERIM
                             // throw new Exception("Unable to perform init, try again!")
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 2 state"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 2"
                         }
                     }
                 }
@@ -109,27 +109,31 @@ pipeline{
                             if(!fileFound){
                                 sh "mkdir -p ../../${params.deploymentId}"
                                 sh "terraform plan \
-                                -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                                 -var 'aws_region=${AWS_REGION}' \
+                                -var 'dyn_tag=`python3 ./util/helper.py app ${params.deploymentId} tag dyn`' \
+                                -var 's3_tag=`python3 ./util/helper.py app ${params.deploymentId} tag s3`' \
+                                -var 'state_config=`python3 ./util/helper.py app ${params.deploymentId} config state`' \
                                 -out ../../${params.deploymentId}/apply.tfplan"
                                 sh "terraform show ../../${params.deploymentId}/apply.tfplan"
                             } else {
                                 sh "terraform plan \
-                                -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                                 -var 'aws_region=${AWS_REGION}' \
+                                -var 'dyn_tag=`python3 ./util/helper.py app ${params.deploymentId} tag dyn`' \
+                                -var 's3_tag=`python3 ./util/helper.py app ${params.deploymentId} tag s3`' \
+                                -var 'state_config=`python3 ./util/helper.py app ${params.deploymentId} config state`' \
                                 -state ../../${params.deploymentId}/terraform.tfstate \
                                 -out ../../${params.deploymentId}/apply.tfplan"
                                 sh "terraform show ../../${params.deploymentId}/apply.tfplan"
                             }
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 3 state"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 3"
                         } catch (Exception err){
                             println(err)
                             throw new Exception("Unable perform plan, try again!")
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 4 state"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 4"
                         }
                     }
                 }
@@ -150,10 +154,12 @@ pipeline{
                         dir("./tfremotestate/bin"){
                             // PLAN DESTROY
                             sh "terraform plan -destroy \
-                            -var 'id=${params.deploymentId}' \
                             -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                             -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                             -var 'aws_region=${AWS_REGION}' \
+                            -var 'dyn_tag=`python3 ./util/helper.py app ${params.deploymentId} tag dyn`' \
+                            -var 's3_tag=`python3 ./util/helper.py app ${params.deploymentId} tag s3`' \
+                            -var 'state_config=`python3 ./util/helper.py app ${params.deploymentId} config state`' \
                             -out ../../${params.deploymentId}/destroy.tfplan \
                             -state ../../${params.deploymentId}/terraform.tfstate"
                             sh "terraform show ../../${params.deploymentId}/destroy.tfplan"
@@ -167,8 +173,8 @@ pipeline{
                                 -state ../../${params.deploymentId}/terraform.tfstate \
                                 ../../${params.deploymentId}/destroy.tfplan"
                             }
-                            sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 8 state"
+                            // sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 8"
                         }
                         currentBuild.result = "UNSTABLE"
                     }
@@ -188,8 +194,8 @@ pipeline{
                                     refresh = true
                                 }
                             } 
-                            sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
-                            sh "python3 ./util/helper.py status ${params.deploymentId} 6 state"
+                            // sh "terraform output -state ../../${params.deploymentId}/terraform.tfstate -json > ${params.deploymentId}-output.json"
+                            sh "python3 ./util/helper.py deployment ${params.deploymentId} 6"
                         }
                     }
                 }
@@ -205,10 +211,12 @@ pipeline{
                             println("refresh = ${refresh}")
                             if(refresh){
                                 sh "terraform refresh \
-                                -var 'id=${params.deploymentId}' \
                                 -var 'aws_access_key=${AWS_ACCESS_KEY}' \
                                 -var 'aws_secret_key=${AWS_SECRET_KEY}' \
                                 -var 'aws_region=${AWS_REGION}' \
+                                -var 'dyn_tag=`python3 ./util/helper.py app ${params.deploymentId} tag dyn`' \
+                                -var 's3_tag=`python3 ./util/helper.py app ${params.deploymentId} tag s3`' \
+                                -var 'state_config=`python3 ./util/helper.py app ${params.deploymentId} config state`' \
                                 -state ../../${params.deploymentId}/terraform.tfstate"
                                 currentBuild.result = "UNSTABLE"
                             } 
