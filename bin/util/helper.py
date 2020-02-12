@@ -14,7 +14,7 @@ class HttpFetch(object):
         hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
         port = environ.get('IAC_ENDPOINT_PORT')
         uri = f'{protocol}://{hostname}:{port}'
-        url = f'{uri}/app/{id}?document={document}'
+        url = f'{uri}/app{id}?document={document}'
         response = requests.get(url)
         # WEB RESULT
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
@@ -41,7 +41,7 @@ class HttpFetch(object):
             hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
             port = environ.get('IAC_ENDPOINT_PORT')
             uri = f'{protocol}://{hostname}:{port}'
-            url = f'{uri}/app/deployment/{id}?state={code}'
+            url = f'{uri}/app/deployment{id}?state={code}'
             try:
                 response = requests.get(url)
                 if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
