@@ -5,18 +5,17 @@ import fire
 import json
 import re
 
+# WEB REQUEST
+protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
+hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
+port = environ.get('IAC_ENDPOINT_PORT')
+uri = f'{protocol}://{hostname}:{port}'
 
 class HttpFetch(object):
     
     def app(self, id, document='tag', res='null'):
-        # WEB REQUEST
-        protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
-        hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
-        port = environ.get('IAC_ENDPOINT_PORT')
-        uri = f'{protocol}://{hostname}:{port}'
         url = f'{uri}/app{id}?document={document}'
         response = requests.get(url)
-        # WEB RESULT
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 202:
             err = {'error': f'web {response.status_code}'}
             raise Exception(err)
@@ -36,11 +35,6 @@ class HttpFetch(object):
             return 1
 
     def status(self, id, code=0):
-            # WEB REQUEST
-            protocol = environ.get('IAC_ENDPOINT_PROTOCOL')
-            hostname = environ.get('IAC_ENDPOINT_HOSTNAME')
-            port = environ.get('IAC_ENDPOINT_PORT')
-            uri = f'{protocol}://{hostname}:{port}'
             url = f'{uri}/app/deployment{id}?state={code}'
             try:
                 response = requests.get(url)
